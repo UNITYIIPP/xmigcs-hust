@@ -1,0 +1,279 @@
+motor_num: 31        # 电机数量
+dt: 0.01             # 底层电机命令发送周期；0.0025 对应 400 Hz
+
+# dt 只负责底层电机命令发送周期；策略推理由各策略 run() 按自身配置控制。
+sim: true # true:仿真（跳过串并联踝解算）；false:真机（执行串并联踝解算）
+
+debug: false
+
+# 安全保护配置 值越大越灵敏（-0.5比-0.3更早触发）
+safety:
+  fall_protection: false  # 摔倒保护开关（true: 通过IMU检测摔倒自动切STOP，false: 不检测）
+  fall_gravity_threshold: -0.3  # 摔倒判定阈值：投影重力z分量 > 此值视为摔倒（直立约-1.0，倾斜73度约-0.3）
+
+control_tool: keyboard # joystick, xbox, keyboard
+
+joystick:
+  long_press_thresholds:
+    a: 1.0
+    c: 0.5
+
+  # press_counters: 标量为最小间隔（秒）；也可用 dict 同时设 max_interval，超过该间隔再按下且计数非零则先清零序列
+  press_counters:
+    a:
+      min_interval: 0.4
+      max_interval: 0.5
+    b:
+      min_interval: 0.4
+      max_interval: 1.0
+    c:
+      min_interval: 0.025
+      max_interval: 0.6
+    d:
+      min_interval: 0.4
+      max_interval: 1.0
+
+  initial_height: 0.957
+  max_height: 0.991
+  min_height: 0.791
+  x_command_offset: 0.0
+  y_command_offset: 0.0
+  yaw_command_offset: 0.0
+  max_x_plus_speed: 0.8
+  max_x_minus_speed: 0.5
+  max_y_speed: 0.5
+  max_yaw_speed: 0.8
+  # 状态速度配置
+  state_speed_limits:
+    SWR:
+      max_x_plus: 1.0
+      max_x_minus: 0.5
+      max_y: 0.5
+      max_yaw: 1.0
+      x_command_offset: 0.0
+      y_command_offset: 0.0
+      yaw_command_offset: 0.0
+    AMPMLP:
+      max_x_plus: 1.0
+      max_x_minus: 0.5
+      max_y: 0.5
+      max_yaw: 1.0
+      x_command_offset: 0.0
+      y_command_offset: 0.0
+      yaw_command_offset: 0.0
+
+keyboard:
+  initial_height: 0.90
+  forward_command_offset: 0.0
+  lateral_command_offset: 0.0
+  rotation_command_offset: 0
+  height_step: 0.05
+  max_forward_speed: 1.5
+  max_lateral_speed: 0.5
+  max_rotation_speed: 0.8
+
+xbox:
+  initial_height: 0.89
+  forward_command_offset: 0.0
+  lateral_command_offset: 0.0
+  rotation_command_offset: 0.0
+  height_step: 0.05
+
+
+states:
+  STOP: 0       # 停止 — 保持当前关节位置不动
+  STANDZERO: 1  # 站立零位 — 线性插值到站立姿态
+  DAMPING: 2    # 阻尼保护 — 低增益锁定关节（电机故障时自动进入）
+  SWR: 3        # 全身行走 — AMP 6模式行走，手柄控速
+  AMPMLP: 4     # AMP MLP行走 — 23关节MLP行走策略，手柄控速
+  SUPERMIMIC: 5 # 29关节参考动作跟踪
+  TELEOP_YIBO: 6 # 源部署框架的770维GMR/NPZ跟踪状态；键盘i
+  WHOLE_BODY_CONTROL: 7 # TELEOP_YIBO的独立副本，用于新算法；键盘u
+
+init_state: STOP
+transitions:
+  # ── 全局事件（_add_global_transitions 会自动补全所有保留状态）──
+  gotoSTOP:
+    - {from: STOP, to: STOP}
+  gotoDAMPING:
+    - {from: DAMPING, to: DAMPING}
+
+  gotoZERO:
+    - {from: STOP, to: STANDZERO}
+    - {from: STANDZERO, to: STANDZERO}
+    - {from: AMPMLP, to: STANDZERO}
+    - {from: SUPERMIMIC, to: STANDZERO}
+
+  gotoSWR:
+    - {from: STANDZERO, to: SWR}
+    - {from: SWR, to: SWR}
+    - {from: AMPMLP, to: SWR}
+    - {from: SUPERMIMIC, to: SWR}
+    - {from: TELEOP_YIBO, to: SWR}
+    - {from: WHOLE_BODY_CONTROL, to: SWR}
+
+  # 云卓手柄 A 键：从站立零位或行走态进入 AMP MLP。
+  gotoAMPMLP:
+    - {from: STANDZERO, to: AMPMLP}
+    - {from: SWR, to: AMPMLP}
+    - {from: AMPMLP, to: AMPMLP}
+    - {from: TELEOP_YIBO, to: AMPMLP}
+    - {from: WHOLE_BODY_CONTROL, to: AMPMLP}
+
+  # 键盘 v 或云卓手柄 A+B；先进入 STANDZERO。
+  gotoSUPERMIMIC:
+    - {from: STANDZERO, to: SUPERMIMIC}
+    - {from: SWR, to: SUPERMIMIC}
+    - {from: AMPMLP, to: SUPERMIMIC}
+    - {from: SUPERMIMIC, to: SUPERMIMIC}
+
+  gotoTELEOP_YIBO:
+    - {from: AMPMLP, to: TELEOP_YIBO}
+    - {from: SWR, to: TELEOP_YIBO}
+    - {from: TELEOP_YIBO, to: TELEOP_YIBO}
+
+  gotoWHOLE_BODY_CONTROL:
+    - {from: AMPMLP, to: WHOLE_BODY_CONTROL}
+    - {from: SWR, to: WHOLE_BODY_CONTROL}
+    - {from: WHOLE_BODY_CONTROL, to: WHOLE_BODY_CONTROL}
+
+
+robot_interface:
+  clip_actions: false
+  head_control_status: ["STANDZERO"] # 这些状态下头部受控
+  waist_control_status: ["STANDZERO", "STOP", "DAMPING", "SWR", "AMPMLP", "SUPERMIMIC", "TELEOP_YIBO", "WHOLE_BODY_CONTROL"] # 这些状态下腰部受控制
+  legs_control_status: [] #空代表都允许控制，仅腿部是这个逻辑
+  arms_control_status: ["STANDZERO", "STOP", "DAMPING", "SWR", "AMPMLP", "SUPERMIMIC", "TELEOP_YIBO", "WHOLE_BODY_CONTROL"] # 这些状态下手臂受控制
+  left_arm_only_status: []
+  right_arm_only_status: []
+  dynamic_inter_status: [] # 需要根据双臂位置计算力矩进行动力学插值
+  imu_ypr_offset: [0.0, 0.0, 0.0] # 角度偏移，单位：度
+  zero_pos: [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0
+      ]
+  ct_scale_sim: [
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0,
+      ]
+  ct_scale_real: [
+            2.1, 2.1, 2.44, 3.26, 2.6, 2.6,
+            2.1, 2.1, 2.44, 3.26, 2.6, 2.6,
+            3.2, 2.44, 2.44,
+            2.1, 2.35, 1.4, 2.35, 1.4, 1.4, 1.4,
+            2.1, 2.35, 1.4, 2.35, 1.4, 1.4, 1.4,
+      ]
+  disable_joints: false
+
+  # 关节限位配置
+  joint_limits:
+    # 腿部关节
+    l_hip_pitch:     {min: -3.14, max: 3.14}   # -180° to 180°
+    l_hip_roll:      {min: -0.47, max: 2.62}   # -27° to 150°
+    l_hip_yaw:       {min: -1.57, max: 4.54}   # -90° to 260°
+    l_knee:          {min: -0.09, max: 2.53}   # -5° to 145°
+    l_ankle_pitch:   {min: -1.22, max: 0.52}   # -70° to 30°
+    l_ankle_roll:    {min: -0.52, max: 0.52}   # -30° to 30°
+
+    r_hip_pitch:     {min: -3.14, max: 3.14}   # -180° to 180°
+    r_hip_roll:      {min: -0.47, max: 2.62}   # -27° to 150°
+    r_hip_yaw:       {min: -1.57, max: 4.54}   # -90° to 260°
+    r_knee:          {min: -0.09, max: 2.53}   # -5° to 145°
+    r_ankle_pitch:   {min: -1.22, max: 0.52}   # -70° to 30°
+    r_ankle_roll:    {min: -0.52, max: 0.52}   # -30° to 30°
+
+    # 腰部关节
+    waist_yaw:       {min: -2.97, max: 3.14}   # -170° to 180°
+    waist_roll:      {min: -0.52, max: 0.52}   # -30° to 30°
+    waist_pitch:     {min: -0.52, max: 1.05}   # -30° to 60°
+
+    # 左臂关节
+    l_shoulder_pitch: {min: -2.97, max: 2.97}  # -170° to 170°
+    l_shoulder_roll:  {min: -0.26, max: 3.40}  # -15° to 195°
+    l_shoulder_yaw:   {min: -2.97, max: 2.97}  # -170° to 170°
+    l_elbow:          {min: -2.62 , max: 0.26}  # -150° to 15°
+    l_wrist_yaw:      {min: -2.97, max: 2.97}  # -170° to 170°
+    l_wrist_pitch:    {min: -1.31, max: 1.40}  # -75° to 80°
+    l_wrist_roll:     {min: -1.05, max: 0.79}  # -60° to 45°
+
+    # 右臂关节
+    r_shoulder_pitch: {min: -2.97, max: 2.97}  # -170° to 170°
+    r_shoulder_roll:  {min: -3.40, max: 0.26}  # -195° to 15°
+    r_shoulder_yaw:   {min: -2.97, max: 2.97}  # -170° to 170°
+    r_elbow:          {min: -2.62, max: 0.26}  # -150° to 15°
+    r_wrist_yaw:      {min: -2.97, max: 2.97}  # -170° to 170°
+    r_wrist_pitch:    {min: -1.31, max: 1.40}  # -75° to 80°
+    r_wrist_roll:     {min: -0.79, max: 1.05}  # -45° to 60°
+
+
+  # 过渡时间配置
+  trans_time:
+    # 1. 全局默认时间（优先级最低）
+    default_time: 1
+    # 2. 各状态的配置
+    state_trans_time:
+      SWR:
+        default_trans_time: 0.5
+
+
+  # 脚踝并联关节Kp,Kd
+  ankle_kp_p: [15.0, 15.0, 15.0, 15.0] # ankle_pitch_left, ankle_roll_left, ankle_pitch_right, ankle_roll_right
+  ankle_kd_p: [1.25, 1.25, 1.25, 1.25]
+  # 通讯方式
+  comm_mode: "ros2" # lpc, shm_rpc, tcp_rpc, ros2, ros2_bridge (新接口消息格式)
+  # Source deployment receiver and interpolation settings for TELEOP_YIBO.
+  gmr_interp_delay_sec: 0.012
+  gmr_shared_receiver:
+    enabled: true
+    gmr_topic: "/gmr_info"
+    gmr_6kp_topic: "/gmr_6kp"
+    cpu_ids: [3]
+    fifo_prio: 40
+    startup_timeout_s: 5.0
+
+
+
+# MuJoCo XML 关节名称列表（策略模块的 lab↔mj 映射以此为准）
+# 修改关节顺序时只需改这里，所有策略自动生效
+mj_joints:
+  base: &mj_joints_base
+    - "hip_pitch_l_joint"
+    - "hip_roll_l_joint"
+    - "hip_yaw_l_joint"
+    - "knee_pitch_l_joint"
+    - "ankle_pitch_l_joint"
+    - "ankle_roll_l_joint"
+    - "hip_pitch_r_joint"
+    - "hip_roll_r_joint"
+    - "hip_yaw_r_joint"
+    - "knee_pitch_r_joint"
+    - "ankle_pitch_r_joint"
+    - "ankle_roll_r_joint"
+    - "waist_yaw_joint"
+    - "waist_roll_joint"
+    - "waist_pitch_joint"
+    - "shoulder_pitch_l_joint"
+    - "shoulder_roll_l_joint"
+    - "shoulder_yaw_l_joint"
+    - "elbow_pitch_l_joint"
+    - "elbow_yaw_l_joint"
+    - "wrist_pitch_l_joint"
+    - "wrist_roll_l_joint"
+    - "shoulder_pitch_r_joint"
+    - "shoulder_roll_r_joint"
+    - "shoulder_yaw_r_joint"
+    - "elbow_pitch_r_joint"
+    - "elbow_yaw_r_joint"
+    - "wrist_pitch_r_joint"
+    - "wrist_roll_r_joint"
+  head:
+    - "head_pitch_joint"
+    - "head_yaw_joint"

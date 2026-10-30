@@ -1,0 +1,50 @@
+*.pyc
+.vscode
+# uv 虚拟环境
+.venv/
+venv/
+env/
+
+# Python 缓存和构建文件
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# 运行时和日志
+*.log
+*.sqlite
+*.db
+
+# 临时文件
+*.tmp
+temp/
+.cache/
+
+# 特定于你的项目
+.python-version
+
+.bag/
+bag/
+
+.history
+
+# 本地安装缓存与环境凭据
+.xmigcs_install_cache/
+.env
+.env.*
+!.env.example
+
+*.svg
+*.png

@@ -1,0 +1,67 @@
+repos:
+  # 1. 通用基础钩子
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace    # 删除行尾空格
+        files: \.(py|ipynb|bash|sh)$  # 只检查这些后缀的文件      
+      - id: end-of-file-fixer      # 确保文件以换行符结束
+        files: \.(py|ipynb|bash|sh)$  # 只检查这些后缀的文件      
+      - id: check-yaml             # 检查 YAML 语法
+      - id: check-json             # 检查 JSON 语法
+        exclude: \.vscode/  # 排除 .vscode 目录下的所有文件      
+      # - id: check-added-large-files # 防止提交大文件
+      - id: detect-private-key     # 检测意外提交的私钥
+
+  # 统一引号
+  - repo: https://github.com/myint/unify
+    rev: v0.5
+    hooks:
+      - id: unify
+        args: [--in-place, '--quote="']  # 双引号
+        # args: [--in-place, "--quote='"]  # 单引号
+        files: \.(py|ipynb)$
+
+  - repo: https://github.com/hhatto/autopep8
+    rev: "v2.3.1"
+    hooks:
+      - id: autopep8
+        args:
+          - --in-place
+          - --ignore=E301,E302,E305,E306,E4,E501,E70,E701,W503
+          # # 缩进相关
+          # - --select=E1
+          # # 空格相关
+          # - --select=E2
+          # # 空行相关
+          # - --select=E303
+          # - --select=E304
+          # # 其他错误
+          # - --select=E502
+          # - --select=E711
+          # - --select=E712
+          # - --select=E713
+          # - --select=E714
+          # - --select=E721
+          # - --select=E722
+          # - --select=E731
+          # # 警告
+          # - --select=W291
+          # - --select=W292
+          # - --select=W293
+          # - --select=W391
+          # # W503/W504选择一种 在运算符后/前换行
+          # - --select=W504
+          # - --select=W605
+          # # 忽略的规则
+          # - --ignore=E701
+          # - --ignore=E70
+        files: \.(py|ipynb)$
+
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.7.1
+    hooks:
+      - id: nbqa-autopep8
+        args:
+          - --in-place
+          - --ignore=E301,E302,E305,E306,E4,E501,E70,E701,W503

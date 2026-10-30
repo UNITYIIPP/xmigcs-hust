@@ -1,0 +1,25 @@
+# MANIFEST.in
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.py
+include requirements.txt
+
+# 包含配置文件
+recursive-include src *.yaml
+recursive-include src *.yml
+recursive-include src *.json
+recursive-include src *.onnx
+recursive-include src *.npz
+recursive-include src *.ipynb
+
+# 包含 __init__.py 文件
+recursive-include src */__init__.py
+
+# 排除 .py 文件
+global-exclude *.py
+prune __pycache__
+exclude *.pyc
+exclude build/
+exclude dist/
+exclude *.egg-info/

@@ -1,0 +1,43 @@
+# SuperMimic model and reference selection. Policy parameters come from ONNX.
+model_path: "policydexevt.onnx"
+motion_path: "walk1_subject1.npz"
+goal_encoding: reference_relative
+# For a multi-clip compact library, set motion_clip to the desired clip name.
+
+motor_num: 31
+actions_size: 29
+# FSM run() period; independent of the simulator's physics integration step.
+# Keep dt * control.decimation = 0.02 s (50 Hz policy/reference/history).
+dt: 0.005
+
+control:
+  decimation: 4  # Infer once every two FSM ticks; hold targets between inferences.
+  # Pose interpolation on entry; no reference frames are consumed during it.
+  # For comparison from an already initialized reference state, use 0.0.
+  warm_start_time: 0.0
+  start_frame: 0
+  align_reference_heading: true
+  # Existing RobotData treats IMU RPY and gyro as pelvis-frame data.
+  # Set to imu_waist_link if the device supplies raw sensor-frame values.
+  imu_frame: pelvis
+
+normalization:
+  # The policy's trained normalizers are inside the ONNX graph.
+  clip_scales:
+    clip_observations: .inf
+    clip_actions: .inf
+  obs_scales:
+    lin_vel: 1.0
+    ang_vel: 1.0
+    dof_pos: 1.0
+    dof_vel: 1.0
+
+size:
+  num_hist: 10
+  observations_size: 99
+
+# Policy joint order, default positions, action scales and PD gains are read
+# exclusively from the ONNX supermimic_interface metadata. No JSON sidecar is read.
+fixed_joints:
+  - {name: head_pitch_joint, target_pos: 0.0, kp: 0.0, kd: 0.0}
+  - {name: head_yaw_joint, target_pos: 0.0, kp: 0.0, kd: 0.0}

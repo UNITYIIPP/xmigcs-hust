@@ -1,0 +1,86 @@
+model_path: "20260401_190847_65000.onnx"  
+motor_num: 31       # 电机数量
+actions_size: 23     # action的大小
+dt: 0.01
+warm_start_time: 0.0
+
+control:
+  # gait_cycle_period: 0.9
+  # action_scale: 0.25               # 动作缩放比例
+  decimation: 1                   # 策略下发频率控制
+
+normalization:
+  clip_scales:
+    clip_observations: 100. #18.0mlp
+    clip_actions: 100. #18.0
+  obs_scales:
+    lin_vel: 1.0                  # 线速度缩放因子
+    ang_vel: 1.0                  # 角速度缩放因子
+    dof_pos: 1.0                  # 关节位置缩放因子
+    dof_vel: 1.0                  # 关节速度缩放因子
+
+size:
+  num_hist: 10                     # 历史观测帧数
+  observations_size: 85          # 单帧观测长度
+  # observations_size: 79
+
+# 策略不控制但需要锁位 / 设置 PD 增益的关节
+fixed_joints:
+  - name: "wrist_pitch_l_joint"
+    target_pos: 0.0
+    kp: 20.0
+    kd: 1.4
+  - name: "wrist_roll_l_joint"
+    target_pos: 0.0
+    kp: 20.0
+    kd: 1.4
+  - name: "elbow_yaw_l_joint"
+    target_pos: 0.0
+    kp: 20.0
+    kd: 1.4
+  - name: "wrist_pitch_r_joint"
+    target_pos: 0.0
+    kp: 20.0
+    kd: 1.4
+  - name: "wrist_roll_r_joint"
+    target_pos: 0.0
+    kp: 20.0
+    kd: 1.4
+  - name: "elbow_yaw_r_joint"
+    target_pos: 0.0
+    kp: 20.0
+    kd: 1.4
+  - name: "head_pitch_joint"
+    target_pos: 0.0
+    kp: 0.0
+    kd: 0.0
+  - name: "head_yaw_joint"
+    target_pos: 0.0
+    kp: 0.0
+    kd: 0.0
+
+# gains:
+#   kp: [
+#     300.0, 300.0, 150.0, 350.0, 30.0, 16.8,
+#     300.0, 300.0, 150.0, 350.0, 30.0, 16.8,
+#     400.0, 400.0, 400.0,
+#     150.0, 50.0, 50.0, 150.0, 10, 10, 10,
+#     150.0, 50.0, 50.0, 150.0, 10, 10, 10
+#   ]
+#   kd: [
+#     10.0, 10.0, 5.0, 10.0, 2.5, 0.5,
+#     10.0, 10.0, 5.0, 10.0, 2.5, 0.5,
+#     10.0, 10.0,5.0,
+#     5.0, 2.5, 2.5, 5, 1.0, 1.0, 1.0,
+#     5.0, 2.5, 2.5, 5, 1.0, 1.0, 1.0
+#   ]
+
+
+# init_state:
+#   default_joint_angles: [
+#     -0.2, 0.0, -0.0, 0.42, -0.23, 0.0,   # 左腿
+#     -0.2, 0.0, -0.0, 0.42, -0.23, 0.0,   # 右腿
+#     0.0, 0.0, 0.0,                   # 腰
+#     0.35, 0.18, 0.0, -0.87, # 左臂
+#     0.35, -0.18, 0.0, -0.87, # 右臂
+#   ]

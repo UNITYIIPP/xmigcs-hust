@@ -1,0 +1,59 @@
+[tool.uv]
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "Cython>=0.29", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xmigcs"
+version = "26.5.2"
+description = "Humanoid robot control system based on FSM and RL policies"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "numpy>=1.24,<2; python_version < '3.11'",
+    "numpy>=1.26,<2; python_version >= '3.11'",
+    "onnx==1.20.1",
+    "onnxruntime>=1.19.0,<1.24.0; python_version < '3.11'",
+    "onnxruntime>=1.19.0; python_version >= '3.11'",
+    "pandas>=2.2.3,<3.0; python_version < '3.11'",
+    "pandas>=2.2.3,<3.0; python_version >= '3.11'",
+    "pin==2.7.0",
+    "pyyaml==6.0.3",
+    "scipy>=1.14.1,<1.15; python_version < '3.11'",
+    "scipy>=1.14.1,<1.15; python_version >= '3.11'",
+    "transforms3d==0.4.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/Hust-Legged-Robot-Control/xmigcs-hust"
+Repository = "https://github.com/Hust-Legged-Robot-Control/xmigcs-hust.git"
+Issues = "https://github.com/Hust-Legged-Robot-Control/xmigcs-hust/issues"
+
+# 明确指定包含哪些文件
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"xmigcs" = [
+    "**/*.yaml",
+    "**/*.yml",
+    "**/*.json",
+    "**/*.onnx",
+    "**/*.npz",
+    "**/*.ipynb",
+    "**/*.so",
+    "**/__init__.py",
+    "**/*.urdf",
+]
+"xmigcs.policy.supermimic" = ["config/*.yaml", "model/*.onnx", "model/*.json", "motion/*.npz"]
+"xmigcs.policy.teleop_yibo" = ["config/*.yaml", "model/*.onnx", "model/**/*.onnx", "model/*.npz", "model/**/*.npz", "motion_50hz/*.npz"]
+"xmigcs.policy.whole_body_control" = ["config/*.yaml", "model/*.onnx", "model/**/*.onnx", "model/*.npz", "model/**/*.npz", "motion_50hz/*.npz"]
+
+# 排除 .py 文件
+[tool.setuptools.exclude-package-data]
+"xmigcs" = ["**/*.py"]
+
+[project.scripts]
+xmigcs = "xmigcs.rl_control_node:main"
