@@ -89,6 +89,7 @@ states:
   SUPERMIMIC: 5 # 29关节参考动作跟踪
   TELEOP_YIBO: 6 # 源部署框架的770维GMR/NPZ跟踪状态；键盘i
   WHOLE_BODY_CONTROL: 7 # TELEOP_YIBO的独立副本，用于新算法；键盘u
+  ALLMIMIC: 8 # ALLMIMIC参考跟踪；键盘o
 
 init_state: STOP
 transitions:
@@ -111,6 +112,7 @@ transitions:
     - {from: SUPERMIMIC, to: SWR}
     - {from: TELEOP_YIBO, to: SWR}
     - {from: WHOLE_BODY_CONTROL, to: SWR}
+    - {from: ALLMIMIC, to: SWR}
 
   # 云卓手柄 A 键：从站立零位或行走态进入 AMP MLP。
   gotoAMPMLP:
@@ -119,6 +121,7 @@ transitions:
     - {from: AMPMLP, to: AMPMLP}
     - {from: TELEOP_YIBO, to: AMPMLP}
     - {from: WHOLE_BODY_CONTROL, to: AMPMLP}
+    - {from: ALLMIMIC, to: AMPMLP}
 
   # 键盘 v 或云卓手柄 A+B；先进入 STANDZERO。
   gotoSUPERMIMIC:
@@ -137,13 +140,18 @@ transitions:
     - {from: SWR, to: WHOLE_BODY_CONTROL}
     - {from: WHOLE_BODY_CONTROL, to: WHOLE_BODY_CONTROL}
 
+  gotoALLMIMIC:
+    - {from: AMPMLP, to: ALLMIMIC}
+    - {from: SWR, to: ALLMIMIC}
+    - {from: ALLMIMIC, to: ALLMIMIC}
+
 
 robot_interface:
   clip_actions: false
   head_control_status: ["STANDZERO"] # 这些状态下头部受控
-  waist_control_status: ["STANDZERO", "STOP", "DAMPING", "SWR", "AMPMLP", "SUPERMIMIC", "TELEOP_YIBO", "WHOLE_BODY_CONTROL"] # 这些状态下腰部受控制
+  waist_control_status: ["STANDZERO", "STOP", "DAMPING", "SWR", "AMPMLP", "SUPERMIMIC", "TELEOP_YIBO", "WHOLE_BODY_CONTROL", "ALLMIMIC"] # 这些状态下腰部受控制
   legs_control_status: [] #空代表都允许控制，仅腿部是这个逻辑
-  arms_control_status: ["STANDZERO", "STOP", "DAMPING", "SWR", "AMPMLP", "SUPERMIMIC", "TELEOP_YIBO", "WHOLE_BODY_CONTROL"] # 这些状态下手臂受控制
+  arms_control_status: ["STANDZERO", "STOP", "DAMPING", "SWR", "AMPMLP", "SUPERMIMIC", "TELEOP_YIBO", "WHOLE_BODY_CONTROL", "ALLMIMIC"] # 这些状态下手臂受控制
   left_arm_only_status: []
   right_arm_only_status: []
   dynamic_inter_status: [] # 需要根据双臂位置计算力矩进行动力学插值

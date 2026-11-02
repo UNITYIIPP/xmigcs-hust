@@ -7,11 +7,11 @@
 # identical in both modes; only ``_refresh_reference`` differs.
 
 # onnx_path: "policy_2026-10-08_21-29-56_model_50000.onnx"
-onnx_path: "policy47500_50hz.onnx"
+onnx_path: "GMT_0_0523.onnx"
 # onnx_path: "policy_2026-09-01_09-49-15_model_104000.onnx"  最好一次,带地形+21053
 
 # ---- Reference source selection ----
-ref_source: "npz"            # "gmr" | "npz"
+ref_source: "gmr"            # "gmr" | "npz"
 
 # Used ONLY when ref_source == "npz".
 # Path is resolved against policy/teleop_yibo/model/ unless absolute.

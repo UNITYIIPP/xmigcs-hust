@@ -73,6 +73,10 @@ class RobotData:
         self.ref_body_ang_vel_w = None
         self.ref_joint_pos = None
         self.ref_joint_vel = None
+        # Monotonic times: represented interpolated sample and latest receipt.
+        # Existing I/V consumers retain the same reference arrays.
+        self.ref_sample_time = None
+        self.ref_received_time = None
 
     def copy_from(self, other: 'RobotData'):
         """从另一个RobotData对象复制数据"""

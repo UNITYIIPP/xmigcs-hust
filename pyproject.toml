@@ -50,6 +50,7 @@ where = ["src"]
 "xmigcs.policy.supermimic" = ["config/*.yaml", "model/*.onnx", "model/*.json", "motion/*.npz"]
 "xmigcs.policy.teleop_yibo" = ["config/*.yaml", "model/*.onnx", "model/**/*.onnx", "model/*.npz", "model/**/*.npz", "motion_50hz/*.npz"]
 "xmigcs.policy.whole_body_control" = ["config/*.yaml", "model/*.onnx", "model/**/*.onnx", "model/*.npz", "model/**/*.npz", "motion_50hz/*.npz"]
+"xmigcs.policy.allmimic" = ["config/*.yaml", "model/*.onnx", "model/*.json", "model/**/*.onnx", "model/**/*.json"]
 
 # 排除 .py 文件
 [tool.setuptools.exclude-package-data]

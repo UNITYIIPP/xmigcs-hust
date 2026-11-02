@@ -1,0 +1,629 @@
+{
+  "format_version": 1,
+  "model_file": "actor_0180000.onnx",
+  "checkpoint": "runs/evt_lafan1_4GPU_newobs/last.pt",
+  "checkpoint_sha256": "2dff79d8635944a4a24852093caec5d89feed63eab1681f22df60939bc7f8ad4",
+  "iteration": 180000,
+  "robot": "evt",
+  "task_config": {
+    "goal_pos": "current_ref",
+    "goal_rot": "current_ref",
+    "goal_pos_noise": 0.0,
+    "action": "res",
+    "res_scale": 1.0,
+    "res_legs": "abs",
+    "res_scale_legs": 0.0,
+    "heading": "xaxis",
+    "rot_repr": "6d",
+    "dt": 0.02,
+    "history": 10,
+    "future": 10,
+    "future_offsets": [],
+    "w_body_pos": 1.0,
+    "w_body_ori": 1.0,
+    "w_body_lin": 1.0,
+    "w_body_ang": 1.0,
+    "w_root_pos": 0.5,
+    "w_root_ori": 0.5,
+    "w_action_rate": -0.1,
+    "w_joint_limit": -2.0,
+    "w_residual": 0.0,
+    "std_body_pos": 0.3,
+    "std_body_ori": 0.4,
+    "std_body_lin": 1.0,
+    "std_body_ang": 3.14,
+    "std_root_pos": 0.3,
+    "std_root_ori": 0.4,
+    "term_z": 0.25,
+    "term_tilt": 0.8,
+    "soft_temp_z": 0.02,
+    "soft_temp_tilt": 0.04,
+    "noise_q": 0.01,
+    "noise_qd": 0.5,
+    "noise_gyro": 0.2,
+    "noise_grav": 0.05,
+    "noise_rel_ori": 0.05,
+    "robot": "evt"
+  },
+  "control_frequency_hz": 50.0,
+  "history_frames": 10,
+  "future_frame_offsets": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "inputs": {
+    "obs_history": {
+      "shape": [
+        "batch",
+        990
+      ],
+      "frame_order": "oldest to newest",
+      "per_frame": [
+        "joint_pos_minus_default:29",
+        "joint_vel:29",
+        "root_gyro_local:3",
+        "projected_gravity_local:3",
+        "previous_policy_action:29",
+        "robot_to_current_reference_root_rotation_6d_row_major:6"
+      ]
+    },
+    "goal": {
+      "shape": [
+        "batch",
+        730
+      ],
+      "per_frame": [
+        "root_position:3",
+        "root_rotation_6d:6",
+        "joint_pos:29",
+        "joint_vel:29",
+        "root_linear_velocity_local:3",
+        "root_angular_velocity_local:3"
+      ],
+      "note": "current_ref: position is future reference minus current reference in the current reference heading; orientation is future reference rotation relative to that heading. Other modes follow task_config; tripoint uses 9 pose values."
+    }
+  },
+  "normalization": "obs and goal normalizers are inside the ONNX model; provide unnormalized inputs",
+  "output": {
+    "name": "action",
+    "shape": [
+      "batch",
+      29
+    ],
+    "meaning": "raw policy output; apply task_config action/residual conversion and the PD controller externally"
+  },
+  "control": {
+    "joint_names": [
+      "hip_pitch_l_joint",
+      "hip_roll_l_joint",
+      "hip_yaw_l_joint",
+      "knee_pitch_l_joint",
+      "ankle_pitch_l_joint",
+      "ankle_roll_l_joint",
+      "hip_pitch_r_joint",
+      "hip_roll_r_joint",
+      "hip_yaw_r_joint",
+      "knee_pitch_r_joint",
+      "ankle_pitch_r_joint",
+      "ankle_roll_r_joint",
+      "waist_yaw_joint",
+      "waist_roll_joint",
+      "waist_pitch_joint",
+      "shoulder_pitch_l_joint",
+      "shoulder_roll_l_joint",
+      "shoulder_yaw_l_joint",
+      "elbow_pitch_l_joint",
+      "elbow_yaw_l_joint",
+      "wrist_pitch_l_joint",
+      "wrist_roll_l_joint",
+      "shoulder_pitch_r_joint",
+      "shoulder_roll_r_joint",
+      "shoulder_yaw_r_joint",
+      "elbow_pitch_r_joint",
+      "elbow_yaw_r_joint",
+      "wrist_pitch_r_joint",
+      "wrist_roll_r_joint"
+    ],
+    "default_joint_positions_rad": [
+      -0.25,
+      0.0,
+      0.0,
+      0.5,
+      -0.25,
+      0.0,
+      -0.25,
+      0.0,
+      0.0,
+      0.5,
+      -0.25,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.3,
+      0.0,
+      -0.3,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -0.3,
+      0.0,
+      -0.3,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "action_scale_rad": [
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25
+    ],
+    "joint_limits_rad": [
+      [
+        -3.14159,
+        2.87979
+      ],
+      [
+        -0.418879,
+        2.61799
+      ],
+      [
+        -1.39626,
+        4.53786
+      ],
+      [
+        -0.0872665,
+        2.53073
+      ],
+      [
+        -1.22173,
+        0.523599
+      ],
+      [
+        -0.523599,
+        0.523599
+      ],
+      [
+        -3.14159,
+        2.87979
+      ],
+      [
+        -2.61799,
+        0.418879
+      ],
+      [
+        -4.53786,
+        1.39626
+      ],
+      [
+        -0.0872665,
+        2.53073
+      ],
+      [
+        -1.22173,
+        0.523599
+      ],
+      [
+        -0.523599,
+        0.523599
+      ],
+      [
+        -2.74017,
+        3.22886
+      ],
+      [
+        -0.436332,
+        0.436332
+      ],
+      [
+        -0.523599,
+        0.959931
+      ],
+      [
+        -2.96706,
+        2.96706
+      ],
+      [
+        -0.261799,
+        3.40339
+      ],
+      [
+        -2.96706,
+        2.96706
+      ],
+      [
+        -2.61799,
+        0.261799
+      ],
+      [
+        -2.96706,
+        2.96706
+      ],
+      [
+        -1.39626,
+        1.39626
+      ],
+      [
+        -1.39626,
+        1.39626
+      ],
+      [
+        -2.96706,
+        2.96706
+      ],
+      [
+        -3.40339,
+        0.261799
+      ],
+      [
+        -2.96706,
+        2.96706
+      ],
+      [
+        -2.61799,
+        0.261799
+      ],
+      [
+        -2.96706,
+        2.96706
+      ],
+      [
+        -1.39626,
+        1.39626
+      ],
+      [
+        -1.39626,
+        1.39626
+      ]
+    ],
+    "soft_joint_pos_limit_factor": 0.9,
+    "leg_mask": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "reference_mask": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "policy_action_gain": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "target_equation": "q_target = q0 + action_scale * action_gain * action + reference_mask * (q_ref_next - q0)",
+    "actuators": [
+      {
+        "joint": "hip_pitch_l_joint",
+        "stiffness": 300.0,
+        "damping": 15.0,
+        "effort_limit": 235.0
+      },
+      {
+        "joint": "hip_roll_l_joint",
+        "stiffness": 300.0,
+        "damping": 15.0,
+        "effort_limit": 235.0
+      },
+      {
+        "joint": "hip_yaw_l_joint",
+        "stiffness": 150.0,
+        "damping": 7.5,
+        "effort_limit": 150.0
+      },
+      {
+        "joint": "knee_pitch_l_joint",
+        "stiffness": 350.0,
+        "damping": 15.0,
+        "effort_limit": 400.0
+      },
+      {
+        "joint": "ankle_pitch_l_joint",
+        "stiffness": 30.0,
+        "damping": 3.75,
+        "effort_limit": 55.0
+      },
+      {
+        "joint": "ankle_roll_l_joint",
+        "stiffness": 16.8,
+        "damping": 2.1,
+        "effort_limit": 55.0
+      },
+      {
+        "joint": "hip_pitch_r_joint",
+        "stiffness": 300.0,
+        "damping": 15.0,
+        "effort_limit": 235.0
+      },
+      {
+        "joint": "hip_roll_r_joint",
+        "stiffness": 300.0,
+        "damping": 15.0,
+        "effort_limit": 235.0
+      },
+      {
+        "joint": "hip_yaw_r_joint",
+        "stiffness": 150.0,
+        "damping": 7.5,
+        "effort_limit": 150.0
+      },
+      {
+        "joint": "knee_pitch_r_joint",
+        "stiffness": 350.0,
+        "damping": 15.0,
+        "effort_limit": 400.0
+      },
+      {
+        "joint": "ankle_pitch_r_joint",
+        "stiffness": 30.0,
+        "damping": 3.75,
+        "effort_limit": 55.0
+      },
+      {
+        "joint": "ankle_roll_r_joint",
+        "stiffness": 16.8,
+        "damping": 2.1,
+        "effort_limit": 55.0
+      },
+      {
+        "joint": "waist_yaw_joint",
+        "stiffness": 400.0,
+        "damping": 7.5,
+        "effort_limit": 91.0
+      },
+      {
+        "joint": "waist_roll_joint",
+        "stiffness": 400.0,
+        "damping": 15.0,
+        "effort_limit": 91.0
+      },
+      {
+        "joint": "waist_pitch_joint",
+        "stiffness": 400.0,
+        "damping": 15.0,
+        "effort_limit": 91.0
+      },
+      {
+        "joint": "shoulder_pitch_l_joint",
+        "stiffness": 150.0,
+        "damping": 5.0,
+        "effort_limit": 90.0
+      },
+      {
+        "joint": "shoulder_roll_l_joint",
+        "stiffness": 50.0,
+        "damping": 2.5,
+        "effort_limit": 90.0
+      },
+      {
+        "joint": "shoulder_yaw_l_joint",
+        "stiffness": 50.0,
+        "damping": 2.5,
+        "effort_limit": 50.0
+      },
+      {
+        "joint": "elbow_pitch_l_joint",
+        "stiffness": 150.0,
+        "damping": 5.0,
+        "effort_limit": 50.0
+      },
+      {
+        "joint": "elbow_yaw_l_joint",
+        "stiffness": 50.0,
+        "damping": 5.0,
+        "effort_limit": 36.0
+      },
+      {
+        "joint": "wrist_pitch_l_joint",
+        "stiffness": 20.0,
+        "damping": 2.0,
+        "effort_limit": 36.0
+      },
+      {
+        "joint": "wrist_roll_l_joint",
+        "stiffness": 20.0,
+        "damping": 2.0,
+        "effort_limit": 36.0
+      },
+      {
+        "joint": "shoulder_pitch_r_joint",
+        "stiffness": 150.0,
+        "damping": 5.0,
+        "effort_limit": 90.0
+      },
+      {
+        "joint": "shoulder_roll_r_joint",
+        "stiffness": 50.0,
+        "damping": 2.5,
+        "effort_limit": 90.0
+      },
+      {
+        "joint": "shoulder_yaw_r_joint",
+        "stiffness": 50.0,
+        "damping": 2.5,
+        "effort_limit": 50.0
+      },
+      {
+        "joint": "elbow_pitch_r_joint",
+        "stiffness": 150.0,
+        "damping": 5.0,
+        "effort_limit": 50.0
+      },
+      {
+        "joint": "elbow_yaw_r_joint",
+        "stiffness": 50.0,
+        "damping": 5.0,
+        "effort_limit": 36.0
+      },
+      {
+        "joint": "wrist_pitch_r_joint",
+        "stiffness": 20.0,
+        "damping": 2.0,
+        "effort_limit": 36.0
+      },
+      {
+        "joint": "wrist_roll_r_joint",
+        "stiffness": 20.0,
+        "damping": 2.0,
+        "effort_limit": 36.0
+      }
+    ],
+    "parameter_source": "current project robot configuration; checkpoint stores joint names but not these parameters",
+    "velocity_limit_spec_rad_s": [
+      16.755160819145562,
+      16.755160819145562,
+      13.82300767579509,
+      11.100294042683936,
+      14.137166941154069,
+      14.137166941154069,
+      16.755160819145562,
+      16.755160819145562,
+      13.82300767579509,
+      11.100294042683936,
+      14.137166941154069,
+      14.137166941154069,
+      9.42477796076938,
+      9.42477796076938,
+      9.42477796076938,
+      7.218332720398149,
+      7.218332720398149,
+      11.455294012539582,
+      11.455294012539582,
+      9.739,
+      9.739,
+      9.739,
+      7.218332720398149,
+      7.218332720398149,
+      11.455294012539582,
+      11.455294012539582,
+      9.739,
+      9.739,
+      9.739
+    ],
+    "configuration_sha256": "5d4c2cc731ca9a0dfc2f4f4c37b4a2423c83cd30e91971ec842c222987154013",
+    "mjcf_sha256": "8fa21f83bc2c5964888ed8922614a31496a30c95c928f65c1c9eb0e19687ded8"
+  },
+  "validation": {
+    "onnx_checker": "passed",
+    "reference_evaluator_batches": [
+      1,
+      3
+    ],
+    "max_abs_error": 2.1457672119140625e-06
+  }
+}

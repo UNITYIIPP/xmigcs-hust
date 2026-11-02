@@ -197,7 +197,7 @@ class XMIGCSControlNode(Node):
                 del durations[:-1000]
 
             next_period_s = self._get_policy_tick_period_s()
-            if self.robot_fsm.get_current_state().name in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL'):
+            if self.robot_fsm.get_current_state().name in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL', 'ALLMIMIC'):
                 # Source uses loop_start + period, not accumulated deadlines.
                 next_deadline = loop_start + next_period_s
             elif abs(next_period_s - policy_tick_period_s) > 1e-9:

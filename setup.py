@@ -136,6 +136,9 @@ else:
                 'config/*.yaml', 'model/*.onnx', 'model/**/*.onnx',
                 'model/*.npz', 'model/**/*.npz', 'motion_50hz/*.npz',
             ],
+            'xmigcs.policy.allmimic': [
+                'config/*.yaml', 'model/*.onnx', 'model/*.json', 'model/**/*.onnx', 'model/**/*.json',
+            ],
         },
         # 排除其他 .py 文件
         exclude_package_data={

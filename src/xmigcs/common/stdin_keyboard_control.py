@@ -38,6 +38,7 @@ class KeyboardController:
         v       - gotoSUPERMIMIC（播放参考动作）
         i       - gotoTELEOP_YIBO（源部署770维GMR/NPZ策略，从AMPMLP或SWR进入）
         u       - gotoWHOLE_BODY_CONTROL（独立算法实验状态，从AMPMLP或SWR进入）
+        o       - gotoALLMIMIC（从AMPMLP或SWR进入）
         x/Ctrl+C- 退出
         ←/→     - 调节高度
     """
@@ -107,7 +108,7 @@ class KeyboardController:
         self.running = True
         self.input_thread = threading.Thread(target=self._input_loop, daemon=True)
         self.input_thread.start()
-        print("[KeyboardController] 已启动，按 z/m/n/v/i/u/c 控制状态（z=STANDZERO，m=SWR，n=AMPMLP，v=SUPERMIMIC，i=TELEOP_YIBO，u=WHOLE_BODY_CONTROL，c=STOP），w/s/a/d 控制速度")
+        print("[KeyboardController] 已启动，按 z/m/n/v/i/u/o/c 控制状态（z=STANDZERO，m=SWR，n=AMPMLP，v=SUPERMIMIC，i=TELEOP_YIBO，u=WHOLE_BODY_CONTROL，o=ALLMIMIC，c=STOP），w/s/a/d 控制速度")
 
     def stop(self):
         """停止键盘监听"""
@@ -170,6 +171,7 @@ class KeyboardController:
             'v': self._on_goto_supermimic,
             'i': self._on_goto_teleop_yibo,
             'u': self._on_goto_whole_body_control,
+            'o': self._on_goto_allmimic,
             'x': self._on_exit,
             '\x03': self._handle_ctrl_c,
             '\x1b': self._handle_arrow_key,
@@ -292,6 +294,12 @@ class KeyboardController:
             self._reset_speed()
             self.keyboard_flag.fsm_state_command = "gotoWHOLE_BODY_CONTROL"
             self._print("[keyboard] -> gotoWHOLE_BODY_CONTROL")
+
+    def _on_goto_allmimic(self):
+        with self.data_mutex:
+            self._reset_speed()
+            self.keyboard_flag.fsm_state_command = "gotoALLMIMIC"
+            self._print("[keyboard] -> gotoALLMIMIC")
 
     def _increase_height(self):
         new_target = self.target_height + self.height_step

@@ -1319,13 +1319,13 @@ class RobotInterfaceImpl(RobotInterface):
     def _publish_latest_command(self):
         with self._command_publish_lock:
             command_frame = self._get_latest_command_frame()
-            if command_frame is None or command_frame['state'].name in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL'):
+            if command_frame is None or command_frame['state'].name in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL', 'ALLMIMIC'):
                 return
             self._publish_command_frame(command_frame)
 
     def _publish_background_robot_cmd(self):
         with self._command_publish_lock:
-            if self.current_state.name not in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL'):
+            if self.current_state.name not in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL', 'ALLMIMIC'):
                 self.publish_robot_cmd()
 
     def _publish_command_frame(self, command_frame):
@@ -1852,7 +1852,7 @@ class RobotInterfaceImpl(RobotInterface):
         # and stale I/U frames from being sent when another state takes over.
         with self._command_publish_lock:
             frame = self._capture_command_frame()
-            if self.current_state.name in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL'):
+            if self.current_state.name in ('TELEOP_YIBO', 'WHOLE_BODY_CONTROL', 'ALLMIMIC'):
                 self._publish_command_frame(frame)
                 self.publish_robot_cmd()
 
@@ -2440,6 +2440,7 @@ class RobotInterfaceImpl(RobotInterface):
             self._gmr_curr_time = recv_time
 
         output_frame = None
+        sample_time = None
         if (
             self._gmr_prev_frame is not None
             and self._gmr_curr_frame is not None
@@ -2456,12 +2457,18 @@ class RobotInterfaceImpl(RobotInterface):
             output_frame = self._interpolate_gmr_frame(
                 self._gmr_prev_frame, self._gmr_curr_frame, alpha
             )
+            sample_time = self._gmr_prev_time + alpha * dt
         elif self._gmr_curr_frame is not None:
             output_frame = self._gmr_curr_frame
+            sample_time = self._gmr_curr_time
 
         if output_frame is None:
             return
         self._publish_gmr_reference(output_frame)
+        # Clamp with the interpolation itself: a cached frame must not acquire
+        # a new timestamp on every 100 Hz outer tick (U uses this for its window).
+        self.robot_data_.ref_sample_time = sample_time
+        self.robot_data_.ref_received_time = self._gmr_curr_time
 
     def _decode_gmr_frame(self, data: np.ndarray) -> Dict[str, np.ndarray]:
         """Decode 232 float32 payload into typed arrays (lab-order joints)."""

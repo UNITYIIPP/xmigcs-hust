@@ -1,26 +1,17 @@
-# Whole-body control experiment: same architecture as lingdao (770 obs, 29 actions),
-# only weights differ. The reference trajectory has TWO sources, selected by the
-# ``ref_source`` flag below:
-#   - "gmr": consume the real-time /gmr_info stream (default; teleoperation)
-#   - "npz": replay a pre-recorded motion file (same protocol as policy/lingdao)
-# The 50 Hz control loop, ONNX I/O, 770-d obs and 29-d action layout are
-# identical in both modes; only ``_refresh_reference`` differs.
-
-# onnx_path: "policy_2026-10-08_21-29-56_model_50000.onnx"
-onnx_path: "policy47500_50hz.onnx"
-# onnx_path: "policy_2026-09-01_09-49-15_model_104000.onnx"  最好一次,带地形+21053
+# U state: SuperMimic two-input model; policy parameters come from embedded ONNX metadata.
+# The previous policy47500_50hz.onnx is retained but its 770-d interface is incompatible.
+onnx_path: "policydexevt.onnx"
+# RobotData normally supplies pelvis-frame IMU data; select imu_waist_link for raw sensor data.
+imu_frame: pelvis
+# H and K are inferred from ONNX [1,H,99] and [1,73*K], never hard-coded here.
 
 # ---- Reference source selection ----
-ref_source: "npz"            # "gmr" | "npz"
+ref_source: "gmr"            # "gmr" | "npz"
 
 # Used ONLY when ref_source == "npz".
 # Path is resolved against policy/whole_body_control/model/ unless absolute.
-# motion_file: "../motion_50hz/walk_forward_hips_amplified_002__A001.npz"
 
-# motion_file: "/home/mig/retarget/IKMR/experiment/4/Subject_85_F_4_stageii.npz"
-
-# motion_file: "/home/mig/universal_control/DEX_MOSAIC/npz_data/50hz/Subject_3_F_7_stageii.npz"
-motion_file: "../motion_50hz/walk_forward_hips_amplified_002__A001.npz"
+motion_file: "../motion_50hz/run1_subject5.npz"
 
 npz_anchor_body_index: 0
 # Optional truncation; null/omitted means use the full NPZ length.
@@ -58,8 +49,8 @@ body_names: [
 ]
 anchor_body: "pelvis"
 
-# 770 = cmd58*5 + ori6*5 + ang_vel3*5 + jp29*5 + jv29*5 + act29*5
-num_obs: 770
+# Per-frame proprioception; history length is read from ONNX.
+num_obs: 99
 num_actions: 29
 motor_nums: 29
 
@@ -73,10 +64,10 @@ locked_joint_map: [
 
 # The outer deployment loop runs at 100 Hz; this policy remains at 50 Hz via
 # its independent 0.02 s inference scheduler.
-physical_dt: 0.01
-decimation: 2
+physical_dt: 0.02
+decimation: 1
 
-# tau_limit / warm start / hold_final_reference 与 lingdao 同义；teleop 不需要冻结最终帧。
+# Optional implied PD torque cap; limits below are in motor order.
 tau_limit_enabled: false
 tau_limit: [
   235, 235, 150, 400, 55, 55,
@@ -86,8 +77,44 @@ tau_limit: [
   91, 60, 36, 60, 36, 36, 36,
 ]
 
-# If true and the upstream GMR stream is missing, the FSM keeps writing the last
-# computed q_d_ (and logs a throttled warning). If false it does the same thing
-# but emits no warning. Either way the FSM never crashes on missing frames.
+# Startup: repeat the latest frame into missing future slots; fill with received frames.
+# Full window delay = K * 0.02 s (200 ms for K=10), in addition to transport/interpolation.
+# Longer reference gaps freeze playback. Recovery appends a new frame without interpolating the gap.
+gmr_gap_reset_s: 0.1
 warn_on_missing_ref: true
 warn_throttle_sec: 2.0
+
+# Source order for existing name-less IsaacLab NPZ and the /gmr_info publisher.
+# This is the former 770-d policy's order, NOT the new model's order.
+# NPZ files with joint_names use their own metadata; adjust this fallback if your exporter differs.
+npz_joint_names: &source_joint_names
+  - hip_pitch_l_joint
+  - hip_pitch_r_joint
+  - waist_yaw_joint
+  - hip_roll_l_joint
+  - hip_roll_r_joint
+  - waist_roll_joint
+  - hip_yaw_l_joint
+  - hip_yaw_r_joint
+  - waist_pitch_joint
+  - knee_pitch_l_joint
+  - knee_pitch_r_joint
+  - shoulder_pitch_l_joint
+  - shoulder_pitch_r_joint
+  - ankle_pitch_l_joint
+  - ankle_pitch_r_joint
+  - shoulder_roll_l_joint
+  - shoulder_roll_r_joint
+  - ankle_roll_l_joint
+  - ankle_roll_r_joint
+  - shoulder_yaw_l_joint
+  - shoulder_yaw_r_joint
+  - elbow_pitch_l_joint
+  - elbow_pitch_r_joint
+  - elbow_yaw_l_joint
+  - elbow_yaw_r_joint
+  - wrist_pitch_l_joint
+  - wrist_pitch_r_joint
+  - wrist_roll_l_joint
+  - wrist_roll_r_joint
+gmr_joint_names: *source_joint_names
