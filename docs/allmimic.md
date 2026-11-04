@@ -2,10 +2,11 @@
 
 `ALLMIMIC` 复用 whole_body_control 的外层调度、NPZ/GMR 参考读取与 GMR 延迟窗口。从 SWR/AMPMLP 按 `o` 进入，`m`/`n` 返回，`c` 停止。策略周期为 `physical_dt * decimation = 0.02 s`（50 Hz）。
 
-策略、导出信息与状态配置：
+默认策略、导出信息与状态配置：
 
-- `src/xmigcs/policy/allmimic/model/export/actor_0056000.onnx`
-- `src/xmigcs/policy/allmimic/model/export/actor_0056000.json`
+- `src/xmigcs/policy/allmimic/model/actor_0164000.onnx`
+- `src/xmigcs/policy/allmimic/model/actor_0164000.json`
+- `src/xmigcs/policy/allmimic/motion_50hz/Lafan_urdf/walk1_subject1.npz`
 - `src/xmigcs/policy/allmimic/config/allmimic.yaml`
 
 模型没有嵌入控制元数据。PD、默认角、action scale 和残差掩码从 ONNX 同目录的同名 JSON 读取；更换模型时应同时更换对应 JSON。本状态要求导出配置中的 `goal_pos` 和 `goal_rot` 均为 `current_ref`，heading 为 `xaxis`。旧的 robot-relative 模型不能直接用于此状态。
@@ -25,7 +26,7 @@
 
 目标关节位置 `q0 + action_scale * policy_action_gain * action + reference_mask * (q_ref_next - q0)`，其中 `q_ref_next` 为 t+1 的参考关节角。当前模型两条腿的 reference_mask 为 0（以默认角为基准），腰和手臂为 1（以 t+1 参考关节角为基准）。控制参数取自 JSON。
 
-当前 `ref_source: npz`，可在 YAML 中设为 `gmr`；NPZ 路径可以指向 `whole_body_control/motion_50hz` 中的动作。沿用状态原来的进入流程，前两个有效参考周期不推理；NPZ 在这两拍继续前进。GMR 未来窗口按 U 的策略逐步填充，满窗后参考滞后约 200 ms，另加传输和插值延迟。NPZ 超出动作末尾的未来帧重复末帧全量信息，包含末帧速度。
+当前默认 `ref_source: npz`，使用配置指定的 Lafan_urdf `walk1_subject1.npz`；也可在 YAML 中设为 `gmr`。沿用状态原来的进入流程，前两个有效参考周期不推理；NPZ 在这两拍继续前进。GMR 未来窗口按 U 的策略逐步填充，满窗后参考滞后约 200 ms，另加传输和插值延迟。NPZ 超出动作末尾的未来帧重复末帧全量信息，包含末帧速度。
 
 ```bash
 PYTHONPATH="src:$PYTHONPATH" .venv/bin/python -B -m unittest discover -s test -p test_allmimic.py -v

@@ -7,8 +7,11 @@ from pathlib import Path
 import numpy as np
 
 
-def _rotation_6d(matrix: np.ndarray) -> np.ndarray:
-    return matrix[..., :, :2].reshape(matrix.shape[:-2] + (6,))
+def _rotation_6d(matrix: np.ndarray, column_major: bool = False) -> np.ndarray:
+    columns = matrix[..., :, :2]
+    if column_major:
+        columns = columns.swapaxes(-1, -2)
+    return columns.reshape(matrix.shape[:-2] + (6,))
 
 
 def _yaw_matrix(matrix: np.ndarray) -> np.ndarray:
@@ -39,7 +42,7 @@ class ReferenceMotion:
 
     def __init__(self, path: str, joint_names: list[str], goal_frames: int,
                  encoding: str = "reference_relative", clip_name: str | None = None):
-        if encoding not in ("reference_relative", "raw_reference"):
+        if encoding not in ("reference_relative", "raw_reference", "current_ref"):
             raise ValueError(f"Unsupported SuperMimic goal encoding: {encoding}")
         if goal_frames < 1:
             raise ValueError("goal_frames must be positive")
@@ -51,8 +54,8 @@ class ReferenceMotion:
             if len(names) != len(joint_names) or set(names) != set(joint_names):
                 raise ValueError(f"Reference joints do not match policy: {path}")
             perm = [names.index(name) for name in joint_names]
-            if "robot" in data and str(data["robot"].item()) not in ("tiangong", "tiangong_evt2"):
-                raise ValueError(f"Reference robot is not Tiangong: {path}")
+            if "robot" in data and str(data["robot"].item()) not in ("tiangong", "tiangong_evt2", "evt"):
+                raise ValueError(f"Reference robot is not EVT2: {path}")
             if "root_pos" in data and "rest" in data:
                 if "storage" in data and str(data["storage"].item()) != "compact_v1":
                     raise ValueError(f"Unsupported motion storage: {path}")
@@ -105,22 +108,28 @@ class ReferenceMotion:
         self.root_w_local = np.einsum("nij,nj->ni", root_R_inv, self.root_w)
 
     def goal(self, frame: int) -> np.ndarray:
-        """Future t+1..t+K; only synthetic padding has zero velocity."""
+        """Future t+1..t+K; actor padding repeats the complete final frame."""
         if not 0 <= frame < self.length:
             raise IndexError(frame)
         requested = frame + np.arange(1, self.goal_frames + 1)
         future = np.minimum(requested, self.length - 1)
         recorded = (requested < self.length)[:, None]
-        if self.encoding == "reference_relative":
+        if self.encoding in ("reference_relative", "current_ref"):
             current_yaw_inv = _yaw_matrix(self.root_R[frame]).T
             position = (self.root_p[future] - self.root_p[frame]) @ current_yaw_inv.T
-            orientation = _rotation_6d(current_yaw_inv @ self.root_R[future])
+            orientation = _rotation_6d(current_yaw_inv @ self.root_R[future],
+                                       column_major=self.encoding == "current_ref")
             linear_velocity = self.root_v_local[future]
             angular_velocity = self.root_w_local[future]
         else:
             position = self.root_p[future]
             orientation = _rotation_6d(self.root_R[future])
             linear_velocity, angular_velocity = self.root_v[future], self.root_w[future]
+        if self.encoding == "current_ref":
+            # Actor training clamps future indices, retaining recorded velocities
+            # even in repeated final frames (unlike the legacy SuperMimic format).
+            return np.concatenate((position, orientation, self.q[future], self.qd[future],
+                                   linear_velocity, angular_velocity), axis=-1).reshape(-1).astype(np.float32)
         return np.concatenate((position, orientation, np.where(recorded, linear_velocity, 0.0),
                                np.where(recorded, angular_velocity, 0.0), self.q[future],
                                np.where(recorded, self.qd[future] * 0.1, 0.0)), axis=-1).reshape(-1).astype(np.float32)

@@ -23,7 +23,7 @@ xMIGCS (X-humanoid Motion Intelligence Group Control System) 是一个人形机�
 | DAMPING | 阻尼保护 | 低增益锁定关节（电机故障时自动进入） |
 | SWR | 全身行走 | AMP 6模式行走，手柄控速 |
 | AMPMLP | AMP MLP行走 | 带历史帧的MLP行走策略，手柄控速 |
-| SUPERMIMIC | 参考动作跟踪 | 播放打包的 walk1_subject1 动作 |
+| SUPERMIMIC | 参考动作跟踪 | 播放打包的 run1_subject5 动作 |
 | TELEOP_YIBO | GMR/NPZ 跟踪 | 源部署框架的770维策略，独立接收进程 |
 | WHOLE_BODY_CONTROL | 独立算法实验状态 | TELEOP_YIBO的完整副本，独立代码、配置和资源 |
 
@@ -312,26 +312,29 @@ safety:
 
 ## SuperMimic EVT2 参考动作跟踪
 
-`policy/supermimic/` 已恢复为 `/home/mig/ZhWT/xmigcs-hust` 的原版实现与配置，
-当前使用 29 关节 `policy.onnx`、配套 JSON 和 `fight1_subject3.npz` 参考动作。
-该检查点使用 `reference_relative` 目标编码。每 20 ms 输入最近 10 帧
-99 维机器人观测和未来 10 帧共 730 维参考目标，输出 29 维原始动作。
+`policy/supermimic/` 默认使用 `actor_0100000.onnx`、配套的
+`actor_0100000.json` 和 `run1_subject5.npz` 参考动作。
+该检查点使用 `current_ref` 目标编码。每 20 ms 输入最近 10 帧
+99 维观测（展平为 990 维）和未来 10 帧共 730 维参考目标，输出 29 维原始动作。
+腿部采用默认姿态加策略动作，腰部和手臂采用下一帧参考姿态加策略残差；
+参数和动作掩码由配套 JSON 提供。
 策略类会按关节名称映射到机器人 31 电机顺序；头部两个电机增益为零。
 
 先进入 `STANDZERO`，再用云卓手柄 **A+B**、Xbox **A+B** 或键盘 **v**
-进入 `SUPERMIMIC`。进入后先用 2 秒插值到参考动作首帧，再播放参考动作；
-停止行为保持原版，也可以随时按原有停止键。控制周期、插值时间、
+进入 `SUPERMIMIC`。默认直接开始推理；可通过 `warm_start_time` 设置
+进入时向参考首帧插值的时间。动作结束后请求 STOP，也可以随时按停止键。控制周期、插值时间、
 动作文件和 IMU 帧约定可在
 `src/xmigcs/policy/supermimic/config/supermimic.yaml` 修改。
 
 部署端从参考 NPZ 生成未来目标，不读取真机的全局位置。实际关节角、
 关节速度和 IMU 姿态/角速度仍来自机器人。默认假设 `RobotData` 提供的
 IMU 数据已在 pelvis 坐标系；如果是原始 `imu_waist_link` 数据，将配置中的
-`imu_frame` 改为 `imu_waist_link`。更换 ONNX 时需一起更换同名 `.onnx.json`，
-并确认它记录的 `input_future_goal.encoding` 与参考目标构造一致。
+`imu_frame` 改为 `imu_waist_link`。更换 actor 时需一起更换同名 `.json`。
+旧 `policydexevt.onnx` 仍使用 ONNX 内嵌参数；`goal_encoding: auto` 根据接口选择编码。
 
-代码已用打包的 ONNX 和参考动作完成离线推理及特征数值比对；真机传感器
-坐标系、执行器增益和 2 秒过渡仍需上机核对。
+代码提供打包 ONNX 的离线推理及特征数值比对测试；真机传感器
+坐标系、执行器增益和进入时的过渡需要结合实际环境核对。
+具体接口见 [SuperMimic 说明](src/xmigcs/policy/supermimic/README.md)。
 
 `TELEOP_YIBO` 从 `/home/mig/universal_control/xmigcs-deploy` 迁入，独立于 `v` 的
 `SUPERMIMIC`。默认模型为 `GMT_0_0523.onnx`，输入770维、输出29维，PD和动作缩放

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -56,7 +57,45 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
         self._last_joint_target = self.joint_pos_array_seq.copy()
 
     def _configure_policy(self, cfg: dict) -> None:
-        """Read policy parameters from the ONNX graph, with no YAML/sidecar fallback."""
+        """Select the parameter and feature contract from the ONNX interface."""
+        self.action_gain = np.ones(29, dtype=np.float32)
+        self.reference_mask = np.zeros(29, dtype=np.float32)
+        spec = self._configure_actor_policy() if self._actor_export else self._configure_embedded_policy()
+        arrays = (self.joint_pos_array_seq, self.action_scale,
+                  self.stiffness_array_seq, self.damping_array_seq,
+                  self.action_gain, self.reference_mask)
+        if (self.action_num_ != 29 or len(self.joint_seq) != 29 or set(self.joint_seq) != set(MJ_JOINTS_29)
+                or any(a.shape != (29,) or not np.isfinite(a).all() for a in arrays)
+                or np.any(self.action_scale <= 0) or np.any(self.stiffness_array_seq < 0)
+                or np.any(self.damping_array_seq < 0)):
+            raise ValueError("SuperMimic model, gains, and EVT2 joint names do not match")
+        if self.motor_num_ != len(MJ_JOINTS_31) or self.obs_size_ != 99 or self.num_hist_ < 1:
+            raise ValueError("Expected 31 motors and 99 features per observation")
+        if not np.isfinite(self.control_dt_) or not np.isclose(self.control_dt_, 0.02, rtol=1e-6, atol=1e-9):
+            raise ValueError("SuperMimic policy period must be 0.02 s for the 50 Hz reference motion")
+        if (not isinstance(self.decimation_, (int, np.integer))
+                or isinstance(self.decimation_, bool) or self.decimation_ < 1
+                or not np.isfinite(self.dt_) or self.dt_ <= 0
+                or not np.isclose(self.dt_ * self.decimation_, self.control_dt_, rtol=1e-6, atol=1e-9)):
+            raise ValueError(
+                "SuperMimic requires positive dt and integer decimation >= 1 with "
+                f"dt * decimation = 0.02 s (got dt={self.dt_}, decimation={self.decimation_})"
+            )
+        expected_encoding = "current_ref" if self._actor_export else "reference_relative"
+        configured_encoding = cfg.get("goal_encoding", "auto")
+        if configured_encoding not in ("auto", expected_encoding):
+            raise ValueError(f"This model requires {expected_encoding} goals")
+        self.goal_encoding_ = expected_encoding
+        if any(joint.get("name") in self.joint_seq for joint in cfg.get("fixed_joints", [])):
+            raise ValueError("fixed_joints cannot override a joint controlled by the ONNX policy")
+        self._build_joint_mapping(MJ_JOINTS_31, cfg.get("fixed_joints", []))
+        source = "actor JSON" if self._actor_export else "ONNX"
+        print(f"[FSMStateSUPERMIMIC] Parameters from {source}: iteration={spec.get('iteration', 'unknown')}, "
+              f"action_scale={np.unique(self.action_scale).tolist()}, "
+              f"policy_period={self.control_dt_:g}s, history={self.num_hist_}")
+
+    def _configure_embedded_policy(self) -> dict:
+        """Keep the original embedded SuperMimic interface authoritative."""
         raw = self.ort_session_.get_modelmeta().custom_metadata_map.get("supermimic_interface")
         try:
             spec = json.loads(raw) if raw else None
@@ -85,34 +124,58 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
                 f"Invalid or incomplete embedded SuperMimic parameters in {self.model_path}: {error}. "
                 "Re-export with tools/export_onnx.py to embed robot_config; YAML and JSON sidecars are not used."
             ) from error
-        arrays = (self.joint_pos_array_seq, self.action_scale,
-                  self.stiffness_array_seq, self.damping_array_seq)
-        if (self.action_num_ != 29 or len(self.joint_seq) != 29 or set(self.joint_seq) != set(MJ_JOINTS_29)
-                or any(a.shape != (29,) or not np.isfinite(a).all() for a in arrays)
-                or np.any(self.action_scale <= 0) or np.any(self.stiffness_array_seq < 0)
-                or np.any(self.damping_array_seq < 0)):
-            raise ValueError("SuperMimic model, gains, and EVT2 joint names do not match")
-        if self.motor_num_ != len(MJ_JOINTS_31) or self.obs_size_ != 99 or self.num_hist_ < 1:
-            raise ValueError("Expected 31 motors and 99 features per observation")
-        if not np.isfinite(self.control_dt_) or not np.isclose(self.control_dt_, 0.02, rtol=1e-6, atol=1e-9):
-            raise ValueError("ONNX control_dt_s must be 0.02 s for the 50 Hz reference motion")
-        if (not isinstance(self.decimation_, (int, np.integer))
-                or isinstance(self.decimation_, bool) or self.decimation_ < 1
-                or not np.isfinite(self.dt_) or self.dt_ <= 0
-                or not np.isclose(self.dt_ * self.decimation_, self.control_dt_, rtol=1e-6, atol=1e-9)):
-            raise ValueError(
-                "SuperMimic requires positive dt and integer decimation >= 1 with "
-                f"dt * decimation = 0.02 s (got dt={self.dt_}, decimation={self.decimation_})"
-            )
-        self.goal_encoding_ = cfg.get("goal_encoding", "reference_relative")
-        if self.goal_encoding_ != "reference_relative":
-            raise ValueError("This deployment requires reference_relative goals, matching sim2sim")
-        if any(joint.get("name") in self.joint_seq for joint in cfg.get("fixed_joints", [])):
-            raise ValueError("fixed_joints cannot override a joint controlled by the ONNX policy")
-        self._build_joint_mapping(MJ_JOINTS_31, cfg.get("fixed_joints", []))
-        print(f"[FSMStateSUPERMIMIC] Parameters from ONNX: iteration={spec.get('iteration', 'unknown')}, "
-              f"action_scale={np.unique(self.action_scale).tolist()}, "
-              f"policy_period={self.control_dt_:g}s, history={self.num_hist_}")
+        return spec
+
+    def _configure_actor_policy(self) -> dict:
+        """Load the format-2 EVT actor sidecar, including residual action semantics."""
+        metadata_path = Path(self.model_path).with_suffix(".json")
+        try:
+            with metadata_path.open() as stream:
+                spec = json.load(stream)
+            task, control = spec["task_config"], spec["control"]
+            obs, goal = spec["inputs"]["obs_history"], spec["inputs"]["goal"]
+            obs_features = ["joint_pos_minus_default:29", "joint_vel:29", "root_gyro_local:3",
+                            "projected_gravity_local:3", "previous_policy_action:29",
+                            "reference_root_orientation_relative_to_robot_6d:6"]
+            goal_features = ["root_position:3", "root_rotation_6d:6", "joint_pos:29", "joint_vel:29",
+                             "root_linear_velocity_local:3", "root_angular_velocity_local:3"]
+            if (spec["format_version"] != 2 or spec["model_file"] != Path(self.model_path).name
+                    or spec["robot"] != "evt" or task["actor_ref_orientation"] is not True
+                    or task["goal_pos"] != "current_ref" or task["goal_rot"] != "current_ref"
+                    or task["heading"] != "xaxis" or task["rot_repr"] != "6d"
+                    or task["action"] != "res" or task["res_legs"] != "abs"
+                    or spec["history_frames"] != self.num_hist_
+                    or spec["future_frame_offsets"] != list(range(1, self.goal_frames_ + 1))
+                    or obs["shape"][1:] != [self.num_hist_ * 99]
+                    or goal["shape"][1:] != [self.goal_frames_ * 73]
+                    or obs["frame_order"] != "oldest to newest" or obs["per_frame"] != obs_features
+                    or goal["per_frame"] != goal_features
+                    or obs["reference_orientation"]["rotation_6d_order"]
+                    != ["R00", "R10", "R20", "R01", "R11", "R21"]
+                    or not np.isclose(float(spec["control_frequency_hz"]), 50.)):
+                raise ValueError("unsupported or mismatched actor interface")
+            self.control_dt_ = float(task["dt"])
+            self.joint_seq = list(control["joint_names"])
+            rows = control["actuators"]
+            joints = {joint["joint"]: joint for joint in rows}
+            if len(rows) != 29 or len(joints) != 29 or set(joints) != set(self.joint_seq):
+                raise ValueError("actor actuators must match all 29 policy joints")
+            self.joint_pos_array_seq = np.asarray(control["default_joint_positions_rad"], dtype=np.float32)
+            self.action_scale = np.asarray(control["action_scale_rad"], dtype=np.float32)
+            self.stiffness_array_seq = np.asarray([joints[n]["stiffness"] for n in self.joint_seq], dtype=np.float32)
+            self.damping_array_seq = np.asarray([joints[n]["damping"] for n in self.joint_seq], dtype=np.float32)
+            self.action_gain = np.asarray(control["policy_action_gain"], dtype=np.float32)
+            self.reference_mask = np.asarray(control["reference_mask"], dtype=np.float32)
+            legs = np.array([any(group in n for group in ("hip", "knee", "ankle")) for n in self.joint_seq])
+            expected_gain = np.where(legs, 1., float(task["res_scale"]))
+            if (not np.array_equal(control["leg_mask"], legs)
+                    or not np.array_equal(self.reference_mask, (~legs).astype(np.float32))
+                    or self.action_gain.shape != (29,)
+                    or not np.allclose(self.action_gain, expected_gain)):
+                raise ValueError("actor residual masks/gains disagree with task_config")
+        except (OSError, KeyError, TypeError, ValueError, OverflowError) as error:
+            raise ValueError(f"Invalid SuperMimic actor metadata in {metadata_path}: {error}") from error
+        return spec
 
     def _init_supermimic_session(self, model_path: str) -> None:
         """Validate and warm up both ONNX inputs; the shared base warms up one."""
@@ -125,11 +188,18 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
         self.ort_session_ = ort.InferenceSession(model_path, options, providers=["CPUExecutionProvider"])
         inputs = {value.name: value for value in self.ort_session_.get_inputs()}
         self._obs_input_name = "observation_history" if "observation_history" in inputs else "obs_history"
-        if set(inputs) != {self._obs_input_name, "future_goal"}:
+        self._actor_export = set(inputs) == {"obs_history", "goal"}
+        self._goal_input_name = "goal" if self._actor_export else "future_goal"
+        if set(inputs) != {self._obs_input_name, self._goal_input_name}:
             raise ValueError(f"Unexpected SuperMimic ONNX inputs: {list(inputs)}")
-        obs_shape, goal_shape = inputs[self._obs_input_name].shape, inputs["future_goal"].shape
-        if (len(obs_shape) != 3 or not isinstance(obs_shape[1], int) or obs_shape[1] < 1 or obs_shape[2] != 99
-                or len(goal_shape) != 2 or not isinstance(goal_shape[1], int)
+        obs_shape, goal_shape = inputs[self._obs_input_name].shape, inputs[self._goal_input_name].shape
+        if self._actor_export:
+            valid_obs = (len(obs_shape) == 2 and isinstance(obs_shape[1], int)
+                         and obs_shape[1] >= 99 and obs_shape[1] % 99 == 0)
+        else:
+            valid_obs = (len(obs_shape) == 3 and isinstance(obs_shape[1], int)
+                         and obs_shape[1] >= 1 and obs_shape[2] == 99)
+        if (not valid_obs or len(goal_shape) != 2 or not isinstance(goal_shape[1], int)
                 or goal_shape[1] < 73 or goal_shape[1] % 73
                 or any(value.type != "tensor(float)" for value in inputs.values())
                 or any(isinstance(shape[0], int) and shape[0] != 1 for shape in (obs_shape, goal_shape))):
@@ -139,10 +209,12 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
         if (len(outputs) != 1 or outputs[0].name != "action" or len(outputs[0].shape) != 2
                 or outputs[0].shape[1] != 29 or outputs[0].type != "tensor(float)"):
             raise ValueError("Unexpected SuperMimic ONNX action output")
-        self.num_hist_, self.obs_size_, self.action_num_ = obs_shape[1], obs_shape[2], outputs[0].shape[1]
+        self.num_hist_ = obs_shape[1] // 99 if self._actor_export else obs_shape[1]
+        self.obs_size_, self.action_num_ = 99, outputs[0].shape[1]
+        self._obs_input_shape = (1, self.num_hist_ * 99) if self._actor_export else (1, self.num_hist_, 99)
         self.ort_session_.run(["action"], {
-            self._obs_input_name: np.zeros((1, self.num_hist_, self.obs_size_), dtype=np.float32),
-            "future_goal": np.zeros((1, self.goal_frames_ * 73), dtype=np.float32),
+            self._obs_input_name: np.zeros(self._obs_input_shape, dtype=np.float32),
+            self._goal_input_name: np.zeros((1, self.goal_frames_ * 73), dtype=np.float32),
         })
         print(f"[FSMStateSUPERMIMIC] ONNX model loaded: {model_path}")
 
@@ -218,7 +290,8 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
         reference_rotation = self._reference_alignment @ self.motion_.root_R[self._frame]
         relative_rotation = pelvis_rotation.T @ reference_rotation
         proprio = np.concatenate((q - self.default_angles_lab, qd, gyro, gravity,
-                                  self.last_actions_, _rotation_6d(relative_rotation))).astype(np.float32)
+                                  self.last_actions_, _rotation_6d(relative_rotation,
+                                                                column_major=self._actor_export))).astype(np.float32)
         if not np.isfinite(proprio).all():
             raise ValueError("Nonfinite SuperMimic observation")
         self._update_proprio_history(proprio)
@@ -226,8 +299,8 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
 
     def compute_actions(self) -> None:
         action, = self.ort_session_.run(["action"], {
-            self._obs_input_name: self.observations_.reshape(1, self.num_hist_, self.obs_size_),
-            "future_goal": self.future_goal_.reshape(1, -1),
+            self._obs_input_name: self.observations_.reshape(self._obs_input_shape),
+            self._goal_input_name: self.future_goal_.reshape(1, -1),
         })
         action = action[0]
         if action.shape != (self.action_num_,) or not np.isfinite(action).all():
@@ -246,7 +319,10 @@ class FSMStateSUPERMIMIC(ONNXPolicyBase):
         self.robot_data_.tau_d_[indices] = 0.0
 
     def _apply_action_to_robot(self) -> None:
-        target = self.default_angles_lab + self.action_scale_lab * self.actions_
+        target = self.default_angles_lab + self.action_scale_lab * self.action_gain * self.actions_
+        if self._actor_export:
+            next_q = self.motion_.q[min(self._frame + 1, self.motion_.length - 1)]
+            target += self.reference_mask * (next_q - self.default_angles_lab)
         self._write_joint_targets(target)
         self.last_actions_[:] = self.actions_
 

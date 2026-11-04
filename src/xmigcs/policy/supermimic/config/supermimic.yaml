@@ -1,17 +1,18 @@
-# SuperMimic model and reference selection. Policy parameters come from ONNX.
-model_path: "policydexevt.onnx"
-motion_path: "walk1_subject1.npz"
-goal_encoding: reference_relative
+# Actor exports use a matching .json sidecar; legacy models use embedded metadata.
+model_path: "actor_0100000.onnx"
+motion_path: "run1_subject5.npz"
+# Select current_ref for actor exports and reference_relative for legacy models.
+goal_encoding: auto
 # For a multi-clip compact library, set motion_clip to the desired clip name.
 
 motor_num: 31
 actions_size: 29
 # FSM run() period; independent of the simulator's physics integration step.
 # Keep dt * control.decimation = 0.02 s (50 Hz policy/reference/history).
-dt: 0.005
+dt: 0.01
 
 control:
-  decimation: 4  # Infer once every two FSM ticks; hold targets between inferences.
+  decimation: 2  # Infer once every four FSM ticks; hold targets between inferences.
   # Pose interpolation on entry; no reference frames are consumed during it.
   # For comparison from an already initialized reference state, use 0.0.
   warm_start_time: 0.0
@@ -36,8 +37,8 @@ size:
   num_hist: 10
   observations_size: 99
 
-# Policy joint order, default positions, action scales and PD gains are read
-# exclusively from the ONNX supermimic_interface metadata. No JSON sidecar is read.
+# Policy joint order, defaults, action scales and PD gains come from the selected
+# model's metadata. The actor also supplies residual gains and reference masks.
 fixed_joints:
   - {name: head_pitch_joint, target_pos: 0.0, kp: 0.0, kd: 0.0}
   - {name: head_yaw_joint, target_pos: 0.0, kp: 0.0, kd: 0.0}

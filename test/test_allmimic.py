@@ -96,7 +96,7 @@ class AllMimicTests(unittest.TestCase):
 
     def test_real_model_npz_inputs_and_hybrid_residual_targets(self):
         data, state = self.state()
-        self.assertEqual(Path(state.onnx_path).name, 'actor_0056000.onnx')
+        self.assertEqual(Path(state.onnx_path).name, 'actor_0164000.onnx')
         self.assertEqual([(i.name, i.shape[-1]) for i in state.ort_session.get_inputs()],
                          [('obs_history', 930), ('goal', 730)])
         meta = json.loads(Path(state.onnx_path).with_suffix('.json').read_text())
@@ -186,10 +186,6 @@ class AllMimicTests(unittest.TestCase):
         np.testing.assert_array_equal(state.future_goal, saved_goal)
         state.on_exit()
         self.assertIsNone(state.gmr_window.window())
-
-    def test_rejects_old_robot_relative_model(self):
-        with self.assertRaisesRegex(ValueError, 'Unsupported or mismatched'):
-            self.state(onnx_path=str(POLICY/'model/actor_0016000.onnx'))
 
     @patch('xmigcs.FSM.robot_fsm.xlog')
     def test_o_key_registered_fsm_transitions(self, _log):

@@ -1,13 +1,16 @@
 {
-  "format_version": 1,
-  "model_file": "actor_0016000.onnx",
-  "checkpoint": "runs/evt_lafan1_3gpu/ckpt_0016000.pt",
-  "checkpoint_sha256": "2836cdd92b196be2389f8bb0d646b53551e7584b7297a22b57e3d2d2a0fafcdb",
-  "iteration": 16000,
+  "format_version": 2,
+  "model_file": "actor_0100000.onnx",
+  "checkpoint": "runs/evt_root_feedback_actor/last.pt",
+  "checkpoint_sha256": "fa9caffccf1180320fc5cd5f8a06c33ed257c0baa3e320514f27cdf5f802d12b",
+  "iteration": 100000,
   "robot": "evt",
   "task_config": {
-    "goal_pos": "robot",
-    "goal_rot": "robot",
+    "goal_pos": "current_ref",
+    "goal_rot": "current_ref",
+    "critic_future_root": true,
+    "actor_ref_orientation": true,
+    "noise_ref_orientation": 0.05,
     "goal_pos_noise": 0.0,
     "action": "res",
     "res_scale": 1.0,
@@ -62,7 +65,7 @@
     "obs_history": {
       "shape": [
         "batch",
-        930
+        990
       ],
       "frame_order": "oldest to newest",
       "per_frame": [
@@ -70,8 +73,24 @@
         "joint_vel:29",
         "root_gyro_local:3",
         "projected_gravity_local:3",
-        "previous_policy_action:29"
-      ]
+        "previous_policy_action:29",
+        "reference_root_orientation_relative_to_robot_6d:6"
+      ],
+      "reference_orientation": {
+        "formula": "R_robot(t)^T @ R_reference(t)",
+        "rotation_6d_order": [
+          "R00",
+          "R10",
+          "R20",
+          "R01",
+          "R11",
+          "R21"
+        ],
+        "time_alignment": "Each history slot uses its own robot and reference timestamp; newest is current t.",
+        "reset": "Fill history with the reset observation, including its relative reference orientation.",
+        "world_frame": "Robot and reference orientations must share the same world frame and yaw alignment.",
+        "noise": "Use clean relative orientation at deployment; normalization is inside the model."
+      }
     },
     "goal": {
       "shape": [
@@ -86,7 +105,7 @@
         "root_linear_velocity_local:3",
         "root_angular_velocity_local:3"
       ],
-      "note": "Coordinates and orientation encoding follow task_config; tripoint uses 9 pose values."
+      "note": "current_ref: position is future reference minus current reference in the current reference heading; orientation is future reference rotation relative to that heading. Other modes follow task_config; tripoint uses 9 pose values."
     }
   },
   "normalization": "obs and goal normalizers are inside the ONNX model; provide unnormalized inputs",
@@ -622,6 +641,6 @@
       1,
       3
     ],
-    "max_abs_error": 2.6226043701171875e-06
+    "max_abs_error": 2.7418136596679688e-06
   }
 }

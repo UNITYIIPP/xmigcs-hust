@@ -1,5 +1,6 @@
 # ALLMIMIC: actor and its matching JSON sidecar under model/.
-onnx_path: "export/actor_0056000.onnx"
+onnx_path: "actor_0164000.onnx"
+# onnx_path: "/home/mig/dou/allmimic/runs/evt_train/exports/actor_0020000.onnx"
 # RobotData normally supplies pelvis-frame IMU data; select imu_waist_link for raw sensor data.
 imu_frame: pelvis
 # H and K come from the matching JSON sidecar and are checked against ONNX [1,H*93]/[1,73*K].
@@ -10,7 +11,9 @@ ref_source: "npz"            # "gmr" | "npz"
 # Used ONLY when ref_source == "npz".
 # Path is resolved against policy/allmimic/model/ unless absolute.
 
-motion_file: "../../whole_body_control/motion_50hz/walk3_subject5.npz"
+motion_file: "../motion_50hz/Lafan_urdf/walk1_subject1.npz"
+# motion_file: "../motion_50hz/walk_forward_amateur_001__A001.npz"
+
 
 npz_anchor_body_index: 0
 # Optional truncation; null/omitted means use the full NPZ length.
